@@ -327,6 +327,9 @@ class TransformerLanguageModel(MegatronModule):
         self.add_pooler = add_pooler
         self.num_experts = num_experts
 
+        args.padded_vocab_size = 50257 # HH: FIXME
+        args.max_position_embeddings = 2048
+        args.hidden_dropout = 0.0
         # Embeddings.
         if self.pre_process:
             self.embedding = Embedding(self.hidden_size,

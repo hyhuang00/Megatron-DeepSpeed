@@ -57,9 +57,10 @@ def model_provider(pre_process=True, post_process=True):
             # We need to call model.set_batch_fn after deepspeed.initialize
             model._megatron_batch_fn = get_batch_pipe
 
-            # Predompute the attention mask and store it in args. This avoids having to
+            # Precompute the attention mask and store it in args. This avoids having to
             # pipeline it as an activation during training. The mask is constant, and thus
             # we can reuse it.
+            # Lower triangle mask
             attention_mask = torch.tril(torch.ones(
                 (1, args.seq_length, args.seq_length), device=torch.cuda.current_device())).view(
                     1, 1, args.seq_length, args.seq_length)

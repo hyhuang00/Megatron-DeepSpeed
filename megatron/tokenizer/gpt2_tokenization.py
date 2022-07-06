@@ -156,6 +156,7 @@ class GPT2Tokenizer(object):
     def __init__(self, vocab_file, merges_file, errors='replace',
                  special_tokens=None, max_len=None):
         self.max_len = max_len if max_len is not None else int(1e12)
+        # print("Vocab:",vocab_file)
         self.encoder = json.load(open(vocab_file))
         self.decoder = {v: k for k, v in self.encoder.items()}
         self.errors = errors  # how to handle errors in decoding

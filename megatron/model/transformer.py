@@ -18,7 +18,7 @@ import math
 import torch
 import torch.nn.functional as F
 
-from megatron import get_args
+from megatron import get_args, print_rank_0
 from megatron import mpu
 from .module import MegatronModule
 from megatron.model.enums import AttnMaskType, LayerType, AttnType
@@ -453,6 +453,7 @@ class ParallelTransformerLayer(MegatronModule):
             else:
                 moe_mp_size = dist.get_world_size() // self.num_experts
             
+            # print(f"TRANFORMER: EVAL_CAPACITY={args.moe_eval_capacity_factor}")
             self.mlp = MoE(args.hidden_size,
                             ParallelMLP(init_method,
                                 output_layer_init_method=output_layer_init_method,
@@ -672,6 +673,9 @@ class ParallelTransformer(MegatronModule):
         if len(num_experts) == 1:
             num_experts = num_experts * (self.num_layers // args.expert_interval)
 
+        print_rank_0(f"Expert_interval: {args.expert_interval}")
+        print_rank_0(f"Len of experts list: {len(num_experts)}")
+
         self.layers = []
         # Build the layers
         for i in range(self.num_layers):
@@ -680,7 +684,10 @@ class ParallelTransformer(MegatronModule):
                 n_e = num_experts[(layer_num-1) // args.expert_interval]
             else:
                 n_e = 1
+            # print_rank_0(n_e)
             self.layers.append(build_layer(layer_num, n_e))
+
+        # assert False # Exit program
 
         self.layers = torch.nn.ModuleList(self.layers)
 

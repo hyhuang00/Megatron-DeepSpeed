@@ -160,8 +160,8 @@ def save_checkpoint(iteration, model, optimizer, lr_scheduler):
             torch.save(state_dict, checkpoint_name)
 
     if args.deepspeed:
-        #megatron model uses state_dict_for_save_checkpointing instead of the standard state_dict
-        #state_dict is used by deepspeed for module saving so it needs to point to the right function
+        # megatron model uses state_dict_for_save_checkpointing instead of the standard state_dict
+        # state_dict is used by deepspeed for module saving so it needs to point to the right function
         if args.no_pipeline_parallel:
             original_state_dict = model[0].module.state_dict
             model[0].module.state_dict = model[0].module.state_dict_for_save_checkpoint
@@ -285,7 +285,7 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load', strict=True
         # Read the tracker file and set the iteration.
         tracker_filename = get_checkpoint_tracker_filename(load_dir)
 
-        # If no tracker file, return iretation zero.
+        # If no tracker file, return iteration zero.
         if not os.path.isfile(tracker_filename):
             print_rank_0('WARNING: could not find the metadata file {} '.format(
                 tracker_filename))

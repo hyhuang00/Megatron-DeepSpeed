@@ -45,6 +45,11 @@ def post_language_model_processing(lm_output, labels, logit_weights,
     # Output.
     if forward_method_parallel_output is not None:
         parallel_output = forward_method_parallel_output
+    # HH: FIXME
+    # print(lm_output.type(), logit_weights.type())
+    # if not fp16_lm_cross_entropy:
+    #     lm_output = lm_output.float()
+    lm_output = lm_output.type(logit_weights.type()) # A Temporary Fix
     output = parallel_lm_logits(
         lm_output,
         logit_weights,
@@ -156,6 +161,10 @@ class GPTModel(MegatronModule):
             state_dict_[self._word_embeddings_for_head_key] \
                 = self.word_embeddings.state_dict(destination, prefix, keep_vars)
         return state_dict_
+
+    # def load_checkpoint(self, state_dict, load_module_strict=True):
+    #     print(state_dict)
+    #     self.load_state_dict(state_dict, load_module_strict)
 
     def load_state_dict(self, state_dict, strict=True):
         """Customized load."""

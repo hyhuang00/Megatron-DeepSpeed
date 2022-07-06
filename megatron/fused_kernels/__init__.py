@@ -44,6 +44,7 @@ def load(args):
 
     # Helper function to build the kernels.
     def _cpp_extention_load_helper(name, sources, extra_cuda_flags):
+        print(f"Name: {name}, Sources: {sources}, Extra Cuda Flags: {extra_cuda_flags}")
         return cpp_extension.load(
             name=name,
             sources=sources,

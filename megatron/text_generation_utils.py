@@ -90,13 +90,15 @@ def generate_samples_input_from_file(model):
     args = get_args()
     tokenizer = get_tokenizer()
 
+    # print("Tokenizer: ", tokenizer)
     # Read the sample file and open the output file.
     assert args.sample_input_file is not None, \
         'sample input file is not provided.'
     if mpu.is_pipeline_first_stage() and mpu.get_tensor_model_parallel_rank() == 0:
         fname = open(args.sample_input_file, "r")
-        all_raw_text = fname.readlines()
+        all_raw_text = fname.readlines() # Each line is separate paragraph.
         input_count = len(all_raw_text)
+        print(f"Input count: {input_count}")
         input_pos = 0
         if args.sample_output_file is None:
             sample_output_file = args.sample_input_file + ".out"
@@ -116,10 +118,12 @@ def generate_samples_input_from_file(model):
             if mpu.is_pipeline_first_stage() \
                and mpu.get_tensor_model_parallel_rank() == 0:
                 raw_text = all_raw_text[input_pos]
+                print(f"Sequence Number: {input_pos}")
                 input_pos += 1
                 if input_pos == input_count:
                     raw_text = "stop"
                 raw_text_len = len(raw_text)
+                print(f"Raw Text has the length: {raw_text_len}, and the raw text is {raw_text}")
 
                 if "stop" in raw_text:
                     terminate_runs = 1
@@ -167,7 +171,7 @@ def generate_samples_input_from_file(model):
 
             token_stream = get_token_stream(model, [context_tokens])
             for _, decode_tokens in enumerate(token_stream):
-                pass
+                pass # Enumerate to the end of the stream
 
             if mpu.get_tensor_model_parallel_rank() == 0:
                 if mpu.is_pipeline_first_stage():
@@ -336,8 +340,10 @@ def generate_samples_unconditional(model, latencies=[], model_latencies=[], sing
         torch.cuda.synchronize()
         start_time = time.time()
         for token_stream in get_token_stream(model,
-                                             copy.deepcopy(context_tokens), model_latencies=model_latencies, single_token_latency=single_token_latency):
-            pass
+                                             copy.deepcopy(context_tokens), 
+                                             model_latencies=model_latencies, 
+                                             single_token_latency=single_token_latency):
+            pass # Why do we need to do this?
         torch.cuda.synchronize()
         latencies.append(time.time() - start_time)
         start_time = time.time()
@@ -426,7 +432,7 @@ def get_token_stream(model, context_tokens, model_latencies=[], single_token_lat
            t_elapsed = time.time() - t0
            single_token_latency.append(t_elapsed)
         torch.cuda.synchronize()
-        t0=time.time()
+        t0 = time.time()
         count+=1
         context_length += 1
         if tokens is not None:
@@ -486,6 +492,8 @@ def forward_step(model, tokens, position_ids, attention_mask, tokentype_ids,
 def sample_sequence_batch(model, context_tokens, context_lengths,
                           attention_mask, position_ids,
                           maxlen=None, type_ids=None, model_latencies=[]):
+    '''This function will get called when we are working on the generation tasks.
+    '''
 
     args = get_args()
     tokenizer = get_tokenizer()
@@ -493,6 +501,7 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
     model.eval()
     with torch.no_grad():
         context_length = context_lengths.min().item()
+        print(f"Context lengths: {context_length}")
 
         # added eos_id to support the function generate_samples_eval that passes
         # eos_id as an argument and needs termination when that id id found.
@@ -508,6 +517,12 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
         batch_size = context_tokens.size(0)
         is_done = torch.zeros([batch_size]).byte().cuda()
         tokens = context_tokens
+        # print(tokens.device)
+        # print(model.device)
+        # print(model.to_device(tokens.device))
+        print(f'**Input sizes: {tokens.size()}')
+
+        model.to(tokens.device) # Is this needed? Yes, when no ds_inference we need this
         if maxlen is None:
             maxlen = args.seq_length - 1
             if maxlen > (org_context_length + args.out_seq_length):
@@ -550,7 +565,7 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
                 if mpu.is_pipeline_last_stage():
                     assert output is not None
                     logits = output[:, -1].view(batch_size, -1).contiguous()
-
+            print(f"********The output is {output}*******")
             if mpu.is_pipeline_last_stage():
                 if args.greedy:
                     prev = torch.argmax(logits, dim=-1).view(-1)
@@ -560,8 +575,8 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
                     logits = top_k_logits(logits, top_k=args.top_k,
                                           top_p=args.top_p)
                     log_probs = torch.ones_like(logits) 
-                    #TODO: Fix this
-                    #log_probs = F.softmax(logits, dim=-1)
+                    # TODO: Fix this
+                    # log_probs = F.softmax(logits, dim=-1)
                     prev = torch.multinomial(log_probs, num_samples=1).view(-1)
 
                 started = context_lengths <= context_length
